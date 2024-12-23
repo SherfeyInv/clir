@@ -66,7 +66,7 @@ To perform the scan, resolve the error and scan again.
 
 Use with `--all-projects` or `--yarn-workspaces` to indicate how many subdirectories to search. `DEPTH` must be a number, `1` or greater; zero (0) is the current directory.
 
-Default: 4, the current working directory (0) and 4 subdirectories.
+Default: no limit.
 
 Example: `--detection-depth=3` limits search to the specified directory (or the current directory if no `<PATH>` is specified) plus three levels of subdirectories; zero (0) is the current directory.
 
@@ -255,13 +255,25 @@ Auto-detect Maven, JAR, WAR, and AAR files recursively from the current folder.
 
 ### `--sub-project=<NAME>`, `--gradle-sub-project=<NAME>`
 
-For Gradle "multi project" configurations, monitor a specific sub-project.
+For Gradle multi project configurations, monitor a specific sub-project.
 
 ### `--all-sub-projects`
 
-For "multi project" configurations, monitor all sub-projects.
+For multi project configurations, monitor all sub-projects.
 
 Both a build.gradle file and a settings.gradle file, or equivalent files, based on the package manager, must exist in the current directory.
+
+### `--all-projects`
+
+See also the `--all-projects` option information in the Options section of this help.
+
+Use for monorepos. This detects all supported manifests.
+
+For Gradle monorepos Snyk looks only for root level **build.gradle / build.gradle.kts** files and applies the same logic as `--all-sub-projects` behind the scenes.
+
+This option is designed to be run in the root of your monorepo.
+
+For more details, see the following support article: [Scanning Gradle projects in CLI with `--exclude` option does not exclude sub-projects](https://support.snyk.io/hc/en-us/articles/22275760293661-Scanning-Gradle-projects-in-CLI-with-exclude-option-does-not-exclude-sub-projects)
 
 ### `--configuration-matching=<CONFIGURATION_REGEX>`
 
@@ -405,9 +417,15 @@ For a Python project, specify a particular file to monitor.
 
 Default: Snyk scans the requirements.txt file at the top level of the project.
 
-Snyk can recognize any manifest files specified with this option based on `--file=req*.txt`. The `*` is a wildcard and `req` can appear anywhere in the file name.
+**Important:** When specifying a value for the `--file` parameter that is not the default file, you must also include the `--package-manager=pip` option. The test will fail without this parameter.
 
-For example, Snyk recognizes your manifest file when you have renamed it to `requirements-dev.txt`.
+Always specify this parameter with the value `pip` when using a custom `--file` value. For example:
+
+```bash
+snyk test --file=requirements-dev.txt --package-manager=pip
+```
+
+This allows Snyk to correctly recognize and scan your specified manifest file, such as when you have renamed it to `requirements-dev.txt`.
 
 ### `--package-manager=pip`
 

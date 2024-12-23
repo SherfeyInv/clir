@@ -15,8 +15,10 @@ import (
 
 	"github.com/snyk/go-application-framework/pkg/app"
 	"github.com/snyk/go-application-framework/pkg/configuration"
+	"github.com/snyk/go-application-framework/pkg/runtimeinfo"
 	"github.com/snyk/go-application-framework/pkg/utils"
 
+	"github.com/snyk/cli/cliv2/internal/embedded/cliv1"
 	cli_errors "github.com/snyk/cli/cliv2/internal/errors"
 
 	"github.com/snyk/cli/cliv2/internal/cliv2"
@@ -36,11 +38,16 @@ func getCacheDir(t *testing.T) string {
 	return cacheDir
 }
 
+func getRuntimeInfo(t *testing.T) runtimeinfo.RuntimeInfo {
+	t.Helper()
+	return runtimeinfo.New(runtimeinfo.WithVersion(cliv1.CLIV1Version()))
+}
+
 func Test_PrepareV1EnvironmentVariables_Fill_and_Filter(t *testing.T) {
 	orgid := "orgid"
 	testapi := "https://api.snyky.io"
 
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.ORGANIZATION, orgid)
 	config.Set(configuration.API_URL, testapi)
 	config.Set(configuration.PREVIEW_FEATURES_ENABLED, true)
@@ -88,7 +95,7 @@ func Test_PrepareV1EnvironmentVariables_DontOverrideExistingIntegration(t *testi
 	orgid := "orgid"
 	testapi := "https://api.snyky.io"
 
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.ORGANIZATION, orgid)
 	config.Set(configuration.API_URL, testapi)
 
@@ -123,7 +130,7 @@ func Test_PrepareV1EnvironmentVariables_OverrideProxyAndCerts(t *testing.T) {
 	orgid := "orgid"
 	testapi := "https://api.snyky.io"
 
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.ORGANIZATION, orgid)
 	config.Set(configuration.API_URL, testapi)
 
@@ -155,7 +162,7 @@ func Test_PrepareV1EnvironmentVariables_OverrideProxyAndCerts(t *testing.T) {
 }
 
 func Test_PrepareV1EnvironmentVariables_OnlyExplicitlySetValues(t *testing.T) {
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 
 	t.Run("Values not set", func(t *testing.T) {
 		input := []string{}
@@ -196,7 +203,7 @@ func Test_PrepareV1EnvironmentVariables_Fail_DontOverrideExisting(t *testing.T) 
 	orgid := "orgid"
 	testapi := "https://api.snyky.io"
 
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.ORGANIZATION, orgid)
 	config.Set(configuration.API_URL, testapi)
 
@@ -218,7 +225,7 @@ func Test_PrepareV1EnvironmentVariables_Fail_DontOverrideExisting_Org(t *testing
 	orgid := "orgid"
 	testapi := "https://api.snyky.io"
 
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.ORGANIZATION, orgid)
 	config.Set(configuration.API_URL, testapi)
 
@@ -268,9 +275,9 @@ func getProxyInfoForTest() *proxy.ProxyInfo {
 func Test_prepareV1Command(t *testing.T) {
 	expectedArgs := []string{"hello", "world"}
 	cacheDir := getCacheDir(t)
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, cacheDir)
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 
 	snykCmd, err := cli.PrepareV1Command(
@@ -293,13 +300,13 @@ func Test_prepareV1Command(t *testing.T) {
 func Test_extractOnlyOnce(t *testing.T) {
 	cacheDir := getCacheDir(t)
 	tmpDir := utils.GetTemporaryDirectory(cacheDir, cliv2.GetFullVersion())
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	assert.NoDirExists(t, tmpDir)
 
 	// create instance under test
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 	assert.NoError(t, cli.Init())
 
@@ -327,13 +334,13 @@ func Test_extractOnlyOnce(t *testing.T) {
 func Test_init_extractDueToInvalidBinary(t *testing.T) {
 	cacheDir := getCacheDir(t)
 	tmpDir := utils.GetTemporaryDirectory(cacheDir, cliv2.GetFullVersion())
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	assert.NoDirExists(t, tmpDir)
 
 	// create instance under test
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 
 	// fill binary with invalid data
@@ -365,13 +372,13 @@ func Test_executeRunV2only(t *testing.T) {
 
 	cacheDir := getCacheDir(t)
 	tmpDir := utils.GetTemporaryDirectory(cacheDir, cliv2.GetFullVersion())
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	assert.NoDirExists(t, tmpDir)
 
 	// create instance under test
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 	assert.NoError(t, cli.Init())
 
@@ -384,11 +391,11 @@ func Test_executeUnknownCommand(t *testing.T) {
 	expectedReturnCode := constants.SNYK_EXIT_CODE_ERROR
 
 	cacheDir := getCacheDir(t)
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	// create instance under test
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 	assert.NoError(t, cli.Init())
 
@@ -403,7 +410,7 @@ func Test_clearCache(t *testing.T) {
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	// create instance under test
-	cli, _ := cliv2.NewCLIv2(config, discardLogger)
+	cli, _ := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.Nil(t, cli.Init())
 
 	// create folders and files in cache dir
@@ -439,7 +446,7 @@ func Test_clearCacheBigCache(t *testing.T) {
 	config.Set(configuration.CACHE_PATH, cacheDir)
 
 	// create instance under test
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 	assert.NoError(t, cli.Init())
 
@@ -479,8 +486,8 @@ func Test_setTimeout(t *testing.T) {
 	runtime.GOOS == "windows" {
 		t.Skip("Skipping test on windows")
 	}
-	config := configuration.NewInMemory()
-	cli, err := cliv2.NewCLIv2(config, discardLogger)
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
+	cli, err := cliv2.NewCLIv2(config, discardLogger, getRuntimeInfo(t))
 	assert.NoError(t, err)
 	config.Set(configuration.TIMEOUT, 1)
 

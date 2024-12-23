@@ -72,8 +72,10 @@ func setup(t *testing.T, baseCache string, version string) configuration.Configu
 	t.Helper()
 	err := gafUtils.CreateAllDirectories(baseCache, version)
 	assert.Nil(t, err)
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.CACHE_PATH, baseCache)
+	config.Set(basic_workflows.ConfigurationCleanupGlobalTempDirectory, true)
+	config.Set(basic_workflows.ConfigurationCleanupGlobalCertAuthority, true)
 	caData, err = basic_workflows.GetGlobalCertAuthority(config, &debugLogger)
 	assert.Nil(t, err)
 	return config
@@ -82,7 +84,9 @@ func setup(t *testing.T, baseCache string, version string) configuration.Configu
 func teardown(t *testing.T, baseCache string) {
 	t.Helper()
 	err := os.RemoveAll(baseCache)
-	basic_workflows.CleanupGlobalCertAuthority(&debugLogger)
+	config := setup(t, "testcache", "1.1.1")
+
+	basic_workflows.CleanupGlobalCertAuthority(config, &debugLogger)
 	assert.Nil(t, err)
 }
 
@@ -96,7 +100,7 @@ func Test_CleanupCertFile(t *testing.T) {
 
 	assert.FileExistsf(t, caData.CertFile, "CertFile exist")
 
-	basic_workflows.CleanupGlobalCertAuthority(&debugLogger)
+	basic_workflows.CleanupGlobalCertAuthority(config, &debugLogger)
 
 	assert.NoFileExists(t, caData.CertFile, "CertFile does not exist anymore")
 }
@@ -120,7 +124,7 @@ func Test_canGoThroughProxy(t *testing.T) {
 	proxiedClient, err := helper_getHttpClient(wp, useProxyAuth)
 	assert.Nil(t, err)
 
-	res, err := proxiedClient.Get("https://static.snyk.io/cli/latest/version")
+	res, err := proxiedClient.Get("https://downloads.snyk.io/cli/latest/version")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +152,7 @@ func Test_proxyRejectsWithoutBasicAuthHeader(t *testing.T) {
 	proxiedClient, err := helper_getHttpClient(wp, useProxyAuth)
 	assert.Nil(t, err)
 
-	res, err := proxiedClient.Get("https://static.snyk.io/cli/latest/version")
+	res, err := proxiedClient.Get("https://downloads.snyk.io/cli/latest/version")
 	assert.Nil(t, res)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Proxy Authentication Required")
@@ -264,7 +268,7 @@ func Test_proxyPropagatesAuthFailureHeader(t *testing.T) {
 	proxiedClient, err := helper_getHttpClient(wp, useProxyAuth)
 	assert.Nil(t, err)
 
-	res, err := proxiedClient.Get("https://static.snyk.io/cli/latest/version")
+	res, err := proxiedClient.Get("https://downloads.snyk.io/cli/latest/version")
 	assert.Nil(t, err)
 	// Assert that the proxy propagates the auth failed marker header to the response.
 	assert.Equal(t, res.Header.Get("snyk-auth-failed"), "true")

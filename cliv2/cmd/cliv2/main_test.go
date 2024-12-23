@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	localworkflows "github.com/snyk/go-application-framework/pkg/local_workflows"
 	"github.com/snyk/go-application-framework/pkg/local_workflows/content_type"
 	"github.com/snyk/go-application-framework/pkg/local_workflows/json_schemas"
+	"github.com/snyk/go-application-framework/pkg/local_workflows/local_models"
 	"github.com/snyk/go-application-framework/pkg/mocks"
 	"github.com/snyk/go-application-framework/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -48,7 +51,7 @@ func Test_MainWithErrorCode(t *testing.T) {
 
 func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 	t.Run("via SNYK_DISABLE_ANALYTICS (true)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("SNYK_DISABLE_ANALYTICS", "true")
@@ -57,7 +60,7 @@ func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 		assert.True(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 	})
 	t.Run("via SNYK_DISABLE_ANALYTICS (1)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("SNYK_DISABLE_ANALYTICS", "1")
@@ -66,7 +69,7 @@ func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 		assert.True(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 	})
 	t.Run("via SNYK_CFG_DISABLE_ANALYTICS (true)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("SNYK_CFG_DISABLE_ANALYTICS", "true")
@@ -75,7 +78,7 @@ func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 		assert.True(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 	})
 	t.Run("via SNYK_CFG_DISABLE_ANALYTICS (1)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("SNYK_CFG_DISABLE_ANALYTICS", "1")
@@ -84,7 +87,7 @@ func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 		assert.True(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 	})
 	t.Run("via DISABLE-ANALYTICS (true)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("disable-analytics", "true")
@@ -93,7 +96,7 @@ func Test_initApplicationConfiguration_DisablesAnalytics(t *testing.T) {
 		assert.True(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 	})
 	t.Run("via DISABLE-ANALYTICS (1)", func(t *testing.T) {
-		c := configuration.NewInMemory()
+		c := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		assert.False(t, c.GetBool(configuration.ANALYTICS_DISABLED))
 
 		c.Set("disable-analytics", "1")
@@ -196,9 +199,16 @@ func Test_runMainWorkflow_unknownargs(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			_ = globalEngine.Init()
+			// Register our data transformation workflow
+			err := localworkflows.InitDataTransformationWorkflow(globalEngine)
+			assert.NoError(t, err)
 
-			config := configuration.NewInMemory()
+			_ = globalEngine.Init()
+			// Register our data filter workflow
+			err = localworkflows.InitFilterFindingsWorkflow(globalEngine)
+			assert.NoError(t, err)
+
+			config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 			cmd := &cobra.Command{
 				Use: "command",
 			}
@@ -213,7 +223,7 @@ func Test_runMainWorkflow_unknownargs(t *testing.T) {
 			}
 
 			// call method under test
-			err := runMainWorkflow(config, cmd, positionalArgs, rawArgs)
+			err = runMainWorkflow(config, cmd, positionalArgs, rawArgs)
 			assert.Nil(t, err)
 
 			actualInputDir := config.GetString(configuration.INPUT_DIRECTORY)
@@ -282,7 +292,7 @@ func Test_getErrorFromWorkFlowData(t *testing.T) {
 	t.Run("workflow with empty test summary and unsupported error annotation", func(t *testing.T) {
 		workflowId := workflow.NewWorkflowIdentifier("output")
 		workflowIdentifier := workflow.NewTypeIdentifier(workflowId, "output")
-		d, err := json.Marshal(json_schemas.NewTestSummary("sast"))
+		d, err := json.Marshal(json_schemas.NewTestSummary("sast", "/path"))
 		assert.Nil(t, err)
 		data := workflow.NewData(workflowIdentifier, content_type.TEST_SUMMARY, d)
 		expectedCodeErr := code.NewUnsupportedProjectError("")
@@ -353,6 +363,9 @@ func Test_runWorkflowAndProcessData(t *testing.T) {
 
 	_, err := globalEngine.Register(workflowId1, workflowConfig, outputFn)
 	assert.NoError(t, err)
+	// Register our data filter workflow
+	err = localworkflows.InitFilterFindingsWorkflow(globalEngine)
+	assert.NoError(t, err)
 
 	fn := func(invocation workflow.InvocationContext, input []workflow.Data) ([]workflow.Data, error) {
 		typeId := workflow.NewTypeIdentifier(invocation.GetWorkflowIdentifier(), "workflowData")
@@ -385,6 +398,10 @@ func Test_runWorkflowAndProcessData(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, entry)
 
+	// Register our data transformation workflow
+	err = localworkflows.InitDataTransformationWorkflow(globalEngine)
+	assert.NoError(t, err)
+
 	err = globalEngine.Init()
 	assert.NoError(t, err)
 
@@ -400,12 +417,178 @@ func Test_runWorkflowAndProcessData(t *testing.T) {
 	assert.Equal(t, constants.SNYK_EXIT_CODE_VULNERABILITIES_FOUND, actualCode)
 }
 
+func Test_runWorkflowAndProcessData_with_Transformation(t *testing.T) {
+	defer cleanup()
+	globalConfiguration = configuration.New()
+	globalConfiguration.Set(configuration.DEBUG, true)
+	globalConfiguration.Set(configuration.FF_TRANSFORMATION_WORKFLOW, true)
+
+	globalEngine = workflow.NewWorkFlowEngine(globalConfiguration)
+
+	testCmnd := "subcmd1"
+	workflowId1 := workflow.NewWorkflowIdentifier("output")
+
+	outputFn := func(invocation workflow.InvocationContext, input []workflow.Data) ([]workflow.Data, error) {
+		assert.Len(t, input, 2, "incorrect number of items received")
+		localFindingsFound := false
+
+		for i := range input {
+			mimeType := input[i].GetContentType()
+
+			if strings.HasPrefix(mimeType, content_type.LOCAL_FINDING_MODEL) {
+				localFindingsFound = true
+			}
+		}
+
+		assert.True(t, localFindingsFound)
+
+		return input, nil
+	}
+
+	workflowConfig := workflow.ConfigurationOptionsFromFlagset(pflag.NewFlagSet("pla", pflag.ContinueOnError))
+
+	_, err := globalEngine.Register(workflowId1, workflowConfig, outputFn)
+	assert.NoError(t, err)
+
+	// Register our data transformation workflow
+	err = localworkflows.InitDataTransformationWorkflow(globalEngine)
+	assert.NoError(t, err)
+
+	// Register our data filter workflow
+	err = localworkflows.InitFilterFindingsWorkflow(globalEngine)
+	assert.NoError(t, err)
+
+	// Invoke a custom command that returns input
+	fn := func(invocation workflow.InvocationContext, input []workflow.Data) ([]workflow.Data, error) {
+		typeId := workflow.NewTypeIdentifier(invocation.GetWorkflowIdentifier(), "workflowData")
+		testSummary := json_schemas.TestSummary{
+			Results: []json_schemas.TestSummaryResult{
+				{
+					Severity: "critical",
+					Total:    10,
+					Open:     10,
+					Ignored:  0,
+				},
+			},
+			Type: "sast",
+		}
+
+		var d []byte
+		d, err = json.Marshal(testSummary)
+		assert.NoError(t, err)
+
+		testSummaryData := workflow.NewData(typeId, content_type.TEST_SUMMARY, d)
+		sarifData := workflow.NewData(typeId, content_type.SARIF_JSON,
+			loadJsonFile(t, "sarif.json"))
+
+		return []workflow.Data{
+			testSummaryData,
+			sarifData,
+		}, nil
+	}
+	wrkflowId := workflow.NewWorkflowIdentifier(testCmnd)
+	entry, err := globalEngine.Register(wrkflowId, workflowConfig, fn)
+	assert.NoError(t, err)
+	assert.NotNil(t, entry)
+
+	err = globalEngine.Init()
+	assert.NoError(t, err)
+
+	logger := zerolog.New(os.Stderr)
+	err = runWorkflowAndProcessData(globalEngine, &logger, testCmnd)
+}
+
+func Test_runWorkflowAndProcessData_with_Filtering(t *testing.T) {
+	defer cleanup()
+	globalConfiguration = configuration.New()
+	globalConfiguration.Set(configuration.DEBUG, true)
+	globalConfiguration.Set(configuration.IN_MEMORY_THRESHOLD_BYTES, -1)
+	globalConfiguration.Set(configuration.FLAG_SEVERITY_THRESHOLD, "high")
+	globalConfiguration.Set(configuration.FF_TRANSFORMATION_WORKFLOW, true)
+
+	globalEngine = workflow.NewWorkFlowEngine(globalConfiguration)
+
+	testCmnd := "subcmd1"
+	workflowId1 := workflow.NewWorkflowIdentifier("output")
+
+	outputFn := func(invocation workflow.InvocationContext, input []workflow.Data) ([]workflow.Data, error) {
+		var findings local_models.LocalFinding
+		for i := range input {
+			mimeType := input[i].GetContentType()
+
+			if strings.HasPrefix(mimeType, content_type.LOCAL_FINDING_MODEL) {
+				findingsBytes := input[i].GetPayload().([]byte)
+				err := json.Unmarshal(findingsBytes, &findings)
+				assert.NoError(t, err)
+			}
+		}
+
+		// expect all findings below high to be filtered out
+		assert.Equal(t, 1, len(findings.Findings))
+
+		return input, nil
+	}
+
+	workflowConfig := workflow.ConfigurationOptionsFromFlagset(pflag.NewFlagSet("pla", pflag.ContinueOnError))
+
+	_, err := globalEngine.Register(workflowId1, workflowConfig, outputFn)
+	assert.NoError(t, err)
+
+	// Register our data transformation workflow
+	err = localworkflows.InitDataTransformationWorkflow(globalEngine)
+	assert.NoError(t, err)
+
+	// Register our data filter workflow
+	err = localworkflows.InitFilterFindingsWorkflow(globalEngine)
+	assert.NoError(t, err)
+
+	// Invoke a custom command that returns input
+	fn := func(invocation workflow.InvocationContext, input []workflow.Data) ([]workflow.Data, error) {
+		typeId := workflow.NewTypeIdentifier(invocation.GetWorkflowIdentifier(), "workflowData")
+		testSummary := json_schemas.TestSummary{
+			Results: []json_schemas.TestSummaryResult{
+				{
+					Severity: "critical",
+					Total:    10,
+					Open:     10,
+					Ignored:  0,
+				},
+			},
+			Type:             "sast",
+			SeverityOrderAsc: []string{"low", "medium", "high", "critical"},
+		}
+
+		var d []byte
+		d, err = json.Marshal(testSummary)
+		assert.NoError(t, err)
+
+		testSummaryData := workflow.NewData(typeId, content_type.TEST_SUMMARY, d)
+		sarifData := workflow.NewData(typeId, content_type.SARIF_JSON,
+			loadJsonFile(t, "sarif.json"))
+
+		return []workflow.Data{
+			testSummaryData,
+			sarifData,
+		}, nil
+	}
+	wrkflowId := workflow.NewWorkflowIdentifier(testCmnd)
+	entry, err := globalEngine.Register(wrkflowId, workflowConfig, fn)
+	assert.NoError(t, err)
+	assert.NotNil(t, entry)
+
+	err = globalEngine.Init()
+	assert.NoError(t, err)
+
+	logger := zerolog.New(os.Stderr)
+	err = runWorkflowAndProcessData(globalEngine, &logger, testCmnd)
+}
+
 func Test_setTimeout(t *testing.T) {
 	exitedCh := make(chan struct{})
 	fakeExit := func() {
 		close(exitedCh)
 	}
-	config := configuration.NewInMemory()
+	config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 	config.Set(configuration.TIMEOUT, 1)
 	setTimeout(config, fakeExit)
 	select {
@@ -424,7 +607,7 @@ func Test_displayError(t *testing.T) {
 		err := errors.New("test error")
 		userInterface.EXPECT().OutputError(err).Times(1)
 
-		config := configuration.NewInMemory()
+		config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		displayError(err, userInterface, config)
 	})
 
@@ -444,7 +627,7 @@ func Test_displayError(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(fmt.Sprintf("%s does not display anything", scenario.name), func(t *testing.T) {
-			config := configuration.NewInMemory()
+			config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 			err := scenario.err
 			displayError(err, userInterface, config)
 		})
@@ -454,7 +637,7 @@ func Test_displayError(t *testing.T) {
 		err := &wrErr{wraps: &exec.ExitError{}}
 		userInterface.EXPECT().OutputError(err).Times(1)
 
-		config := configuration.NewInMemory()
+		config := configuration.NewWithOpts(configuration.WithAutomaticEnv())
 		displayError(err, userInterface, config)
 	})
 }
@@ -463,3 +646,17 @@ type wrErr struct{ wraps error }
 
 func (e *wrErr) Error() string { return "something went wrong" }
 func (e *wrErr) Unwrap() error { return e.wraps }
+
+func loadJsonFile(t *testing.T, filename string) []byte {
+	t.Helper()
+
+	jsonFile, err := os.Open("./testdata/" + filename)
+	assert.NoError(t, err, "failed to load json")
+	defer func(jsonFile *os.File) {
+		jsonErr := jsonFile.Close()
+		assert.NoError(t, jsonErr)
+	}(jsonFile)
+	byteValue, err := io.ReadAll(jsonFile)
+	assert.NoError(t, err)
+	return byteValue
+}

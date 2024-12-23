@@ -30,6 +30,8 @@ import (
 	"github.com/snyk/cli/cliv2/internal/cliv2"
 	"github.com/snyk/cli/cliv2/internal/constants"
 
+	"github.com/snyk/go-application-framework/pkg/local_workflows/output_workflow"
+
 	"github.com/snyk/go-application-framework/pkg/local_workflows/network_utils"
 
 	localworkflows "github.com/snyk/go-application-framework/pkg/local_workflows"
@@ -160,14 +162,26 @@ func runMainWorkflow(config configuration.Configuration, cmd *cobra.Command, arg
 func runWorkflowAndProcessData(engine workflow.Engine, logger *zerolog.Logger, name string) error {
 	data, err := engine.Invoke(workflow.NewWorkflowIdentifier(name))
 
-	if err == nil {
-		var output []workflow.Data
-		output, err = engine.InvokeWithInput(localworkflows.WORKFLOWID_OUTPUT_WORKFLOW, data)
-		if err == nil {
-			err = getErrorFromWorkFlowData(engine, output)
-		}
-	} else {
+	if err != nil {
 		logger.Print("Failed to execute the command!", err)
+		return err
+	}
+
+	output, err := engine.InvokeWithInput(localworkflows.WORKFLOWID_DATATRANSFORMATION, data)
+	if err != nil {
+		logger.Err(err).Msg(err.Error())
+		return err
+	}
+
+	output, err = engine.InvokeWithInput(localworkflows.WORKFLOWID_FILTER_FINDINGS, output)
+	if err != nil {
+		logger.Err(err).Msg(err.Error())
+		return err
+	}
+
+	output, err = engine.InvokeWithInput(localworkflows.WORKFLOWID_OUTPUT_WORKFLOW, output)
+	if err == nil {
+		err = getErrorFromWorkFlowData(engine, output)
 	}
 	return err
 }
@@ -217,6 +231,8 @@ func getErrorFromWorkFlowData(engine workflow.Engine, data []workflow.Data) erro
 
 func sendAnalytics(analytics analytics.Analytics, debugLogger *zerolog.Logger) {
 	debugLogger.Print("Sending Analytics")
+
+	analytics.SetApiUrl(globalConfiguration.GetString(configuration.API_URL))
 
 	res, err := analytics.Send()
 	if err != nil {
@@ -291,6 +307,24 @@ func defaultCmd(args []string) error {
 	return err
 }
 
+func runCodeTestCommand(cmd *cobra.Command, args []string) error {
+	// ensure legacy behavior, where sarif and json can be used interchangeably
+	globalConfiguration.AddAlternativeKeys(output_workflow.OUTPUT_CONFIG_KEY_SARIF, []string{output_workflow.OUTPUT_CONFIG_KEY_JSON})
+	globalConfiguration.AddAlternativeKeys(output_workflow.OUTPUT_CONFIG_KEY_SARIF_FILE, []string{output_workflow.OUTPUT_CONFIG_KEY_JSON_FILE})
+	return runCommand(cmd, args)
+}
+
+func runAuthCommand(cmd *cobra.Command, args []string) error {
+	err := runCommand(cmd, args)
+
+	reloadError := globalConfiguration.ReloadConfig()
+	if reloadError != nil {
+		globalLogger.Err(reloadError).Msg("Failed to reload the configuration after authentication.")
+	}
+
+	return err
+}
+
 func getGlobalFLags() *pflag.FlagSet {
 	globalConfigurationOptions := workflow.GetGlobalConfiguration()
 	globalFLags := workflow.FlagsetFromConfigurationOptions(globalConfigurationOptions)
@@ -301,7 +335,7 @@ func getGlobalFLags() *pflag.FlagSet {
 }
 
 func emptyCommandFunction(_ *cobra.Command, _ []string) error {
-	return fmt.Errorf(unknownCommandMessage)
+	return fmt.Errorf("%s", unknownCommandMessage)
 }
 
 func createCommandsForWorkflows(rootCommand *cobra.Command, engine workflow.Engine) {
@@ -346,9 +380,15 @@ func createCommandsForWorkflows(rootCommand *cobra.Command, engine workflow.Engi
 		parentCommand.Hidden = !workflowEntry.IsVisible()
 		parentCommand.DisableFlagParsing = false
 
-		// special case for snyk code test, to preserve backwards compatibility we will need to relax flag validation
+		// special case for snyk code test
 		if currentCommandString == "code test" {
+			// to preserve backwards compatibility we will need to relax flag validation
 			parentCommand.FParseErrWhitelist.UnknownFlags = true
+
+			// use the special run command to ensure that the non-standard behavior of the command can be kept
+			parentCommand.RunE = runCodeTestCommand
+		} else if currentCommandString == "auth" {
+			parentCommand.RunE = runAuthCommand
 		}
 	}
 }
@@ -418,7 +458,7 @@ func displayError(err error, userInterface ui.UserInterface, config configuratio
 			return
 		}
 
-		if config.GetBool(localworkflows.OUTPUT_CONFIG_KEY_JSON) {
+		if config.GetBool(output_workflow.OUTPUT_CONFIG_KEY_JSON) {
 			jsonError := JsonErrorStruct{
 				Ok:       false,
 				ErrorMsg: err.Error(),
@@ -451,7 +491,11 @@ func MainWithErrorCode() int {
 	_ = rootCommand.ParseFlags(os.Args)
 
 	// create engine
-	globalConfiguration = configuration.New()
+	globalConfiguration = configuration.NewWithOpts(
+		configuration.WithFiles("snyk"),
+		configuration.WithSupportedEnvVars("NODE_EXTRA_CA_CERTS"),
+		configuration.WithSupportedEnvVarPrefixes("snyk_", "internal_", "test_"),
+	)
 	err = globalConfiguration.AddFlagSet(rootCommand.LocalFlags())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to add flags to root command", err)
@@ -466,6 +510,7 @@ func MainWithErrorCode() int {
 	globalEngine = app.CreateAppEngineWithOptions(app.WithZeroLogger(globalLogger), app.WithConfiguration(globalConfiguration), app.WithRuntimeInfo(rInfo))
 
 	globalConfiguration.AddDefaultValue(configuration.FF_OAUTH_AUTH_FLOW_ENABLED, defaultOAuthFF(globalConfiguration))
+	globalConfiguration.AddDefaultValue(configuration.FF_TRANSFORMATION_WORKFLOW, configuration.StandardDefaultValueFunction(true))
 
 	if noProxyAuth := globalConfiguration.GetBool(basic_workflows.PROXY_NOAUTH); noProxyAuth {
 		globalConfiguration.Set(configuration.PROXY_AUTHENTICATION_MECHANISM, httpauth.StringFromAuthenticationMechanism(httpauth.NoAuth))
@@ -522,11 +567,6 @@ func MainWithErrorCode() int {
 	cliAnalytics.GetInstrumentation().SetStage(instrumentation.DetermineStage(cliAnalytics.IsCiEnvironment()))
 	cliAnalytics.GetInstrumentation().SetStatus(analytics.Success)
 
-	if !globalConfiguration.GetBool(configuration.ANALYTICS_DISABLED) {
-		defer sendAnalytics(cliAnalytics, globalLogger)
-	}
-	defer sendInstrumentation(globalEngine, cliAnalytics.GetInstrumentation(), globalLogger)
-
 	setTimeout(globalConfiguration, func() {
 		os.Exit(constants.SNYK_EXIT_CODE_EX_UNAVAILABLE)
 	})
@@ -567,7 +607,13 @@ func MainWithErrorCode() int {
 		cliAnalytics.GetInstrumentation().SetStatus(analytics.Failure)
 	}
 
+	if !globalConfiguration.GetBool(configuration.ANALYTICS_DISABLED) {
+		sendAnalytics(cliAnalytics, globalLogger)
+	}
+	sendInstrumentation(globalEngine, cliAnalytics.GetInstrumentation(), globalLogger)
+
 	// cleanup resources in use
+	// WARNING: deferred actions will execute AFTER cleanup; only defer if not impacted by this
 	_, err = globalEngine.Invoke(basic_workflows.WORKFLOWID_GLOBAL_CLEANUP)
 	if err != nil {
 		globalLogger.Printf("Failed to cleanup %v", err)

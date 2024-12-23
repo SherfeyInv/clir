@@ -6,7 +6,7 @@
 
 ## Description
 
-The `snyk code test` command tests for any known security issues using Static Code Analysis.
+The `snyk code test` command tests source code for any known security issues (Static Application Security Testing).
 
 ## Exit codes
 
@@ -43,18 +43,6 @@ Default: `<ORG_ID>` that is the current preferred Organization in your [Account 
 
 For more information see the article [How to select the Organization to use in the CLI](https://docs.snyk.io/snyk-cli/scan-and-maintain-projects-using-the-cli/how-to-select-the-organization-to-use-in-the-cli)
 
-### `--report`
-
-Share results with the Snyk Web UI.
-
-If you are an Enterprise customer and in the Publish CLI results Closed Beta, this creates a Project in your Snyk account with a snapshot of the current configuration issues or appends the snapshot to an existing Project.
-
-After using this option, log in to the Snyk website and view your projects to see the snapshot.
-
-Example: `$ snyk code test --report --project-name="PROJECT_NAME"`
-
-For more information, see [Publish CLI results](https://docs.snyk.io/scan-application-code/snyk-code/cli-for-snyk-code/publishing-cli-results-to-a-snyk-project-and-ignoring-cli-results#publishing-cli-results-to-a-snyk-project)
-
 ### `--json`
 
 Print results on the console as a JSON data structure.
@@ -67,7 +55,7 @@ Save test output as a JSON data structure directly to the specified file, regard
 
 Use to display the human-readable test output using stdout and, at the same time, save the JSON data structure output to a file.
 
-For SAST, if no issues are found, Snyk does not create a `json` file. In contrast, for open-source, Snyk creates a file whether or not issues are found.&#x20;
+For SAST, if no issues are found, Snyk does not create a `json` file. In contrast, for open-source, Snyk creates a file whether or not issues are found.
 
 Example: `$ snyk code test --json-file-output=vuln.json`
 
@@ -75,7 +63,7 @@ Example: `$ snyk code test --json-file-output=vuln.json`
 
 Return results in SARIF format.
 
-Example: `$ snyk code --sarif`
+Example: `$ snyk code test --sarif`
 
 ### `--sarif-file-output=<OUTPUT_FILE_PATH>`
 

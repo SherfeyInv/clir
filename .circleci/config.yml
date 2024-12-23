@@ -3,10 +3,10 @@ version: 2.1
 parameters:
   cli_download_base_url:
     type: string
-    default: 'https://static.snyk.io/'
+    default: 'https://downloads.snyk.io/'
   fips_cli_download_base_url:
     type: string
-    default: 'https://static.snyk.io/fips/'
+    default: 'https://downloads.snyk.io/fips/'
   go_download_base_url:
     type: string
     default: 'https://storage.googleapis.com/golang/'
@@ -16,7 +16,7 @@ parameters:
   go_version:
     type: string
     # https://go.dev/doc/devel/release
-    default: '1.22.6'
+    default: '1.23.2'
   aws_version:
     type: string
     # https://github.com/aws/aws-cli/blob/v2/CHANGELOG.rst
@@ -47,24 +47,24 @@ executors:
     resource_class: small
   docker-amd64:
     docker:
-      - image: snyklabs/cli-build:20240814-161347
+      - image: snyklabs/cli-build:20241015-082358
     working_directory: /mnt/ramdisk/snyk
     resource_class: large
   docker-amd64-xl:
     docker:
-      - image: snyklabs/cli-build:20240814-161347
+      - image: snyklabs/cli-build:20241015-082358
     working_directory: /mnt/ramdisk/snyk
     resource_class: xlarge
   docker-arm64:
     docker:
-      - image: snyklabs/cli-build-arm64:20240814-161347
+      - image: snyklabs/cli-build-arm64:20241015-082358
     working_directory: /mnt/ramdisk/snyk
     resource_class: arm.large
-  linux-ubuntu-mantic-amd64:
+  docker-arm64-xl:
     docker:
-      - image: ubuntu:mantic
+      - image: snyklabs/cli-build-arm64:20241015-082358
     working_directory: /mnt/ramdisk/snyk
-    resource_class: medium
+    resource_class: arm.xlarge
   linux-ubuntu-jammy-amd64:
     docker:
       - image: ubuntu:jammy
@@ -85,11 +85,6 @@ executors:
       - image: ubuntu:latest
     working_directory: /mnt/ramdisk/snyk
     resource_class: arm.medium
-  linux-ubuntu-mantic-arm64:
-    docker:
-      - image: ubuntu:mantic
-    working_directory: /mnt/ramdisk/snyk
-    resource_class: arm.medium
   linux-ubuntu-jammy-arm64:
     docker:
       - image: ubuntu:jammy
@@ -105,6 +100,11 @@ executors:
       # https://circleci.com/docs/2.0/testing-ios/#supported-xcode-versions
       xcode: '14.3.1'
     resource_class: macos.m1.medium.gen1
+  macos-arm64-large:
+    macos:
+      # https://circleci.com/docs/2.0/testing-ios/#supported-xcode-versions
+      xcode: '14.3.1'
+    resource_class: macos.m1.large.gen1
   win-server2022-amd64:
     machine:
       image: windows-server-2022-gui:2024.01.1
@@ -176,7 +176,7 @@ commands:
       - restore_cache:
           name: Restoring Chocolatey cache
           keys:
-            - chocolatey-cache-v3-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
+            - chocolatey-cache-v4-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
       - run:
           name: Install Windows dependencies
           shell: bash.exe
@@ -187,7 +187,7 @@ commands:
             choco install nodejs --version=$(head .nvmrc) --no-progress -y
       - save_cache:
           name: Saving Chocolatey cache
-          key: chocolatey-cache-v3-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
+          key: chocolatey-cache-v4-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
           paths:
             - ~\AppData\Local\Temp\chocolatey
       - install-deps-python:
@@ -237,14 +237,14 @@ commands:
   install-deps-windows-full-signing:
     steps:
       - install-deps-windows-signing
-      - install-deps-windows-full
+      - install-deps-windows-make
 
   install-deps-windows-make:
     steps:
       - restore_cache:
           name: Restoring Chocolatey cache
           keys:
-            - chocolatey-cache-v3-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
+            - chocolatey-cache-v4-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
       - run:
           name: Install Windows dependencies
           shell: bash.exe
@@ -252,7 +252,7 @@ commands:
             choco install make --no-progress -y
       - save_cache:
           name: Saving Chocolatey cache
-          key: chocolatey-cache-v3-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
+          key: chocolatey-cache-v4-{{ arch }}-{{ checksum ".circleci/chocolatey.config" }}
           paths:
             - ~\AppData\Local\Temp\chocolatey
       - install-deps-python:
@@ -464,7 +464,7 @@ workflows:
           go_arch: amd64
           go_download_base_url: << pipeline.parameters.fips_go_download_base_url >>
           make_target: build clean-golang build-fips
-          executor: docker-amd64
+          executor: docker-amd64-xl
           requires:
             - prepare-build
 
@@ -475,7 +475,7 @@ workflows:
           go_arch: arm64
           go_download_base_url: << pipeline.parameters.fips_go_download_base_url >>
           make_target: build clean-golang build-fips
-          executor: docker-arm64
+          executor: docker-arm64-xl
           requires:
             - prepare-build
 
@@ -485,7 +485,7 @@ workflows:
           go_os: linux
           go_arch: amd64
           go_download_base_url: << pipeline.parameters.go_download_base_url >>
-          executor: docker-amd64
+          executor: docker-amd64-xl
           c_compiler: /usr/bin/musl-gcc
           requires:
             - prepare-build
@@ -496,7 +496,7 @@ workflows:
           go_os: linux
           go_arch: arm64
           go_download_base_url: << pipeline.parameters.go_download_base_url >>
-          executor: docker-arm64
+          executor: docker-arm64-xl
           c_compiler: /usr/bin/musl-gcc
           requires:
             - prepare-build
@@ -507,7 +507,7 @@ workflows:
           go_os: darwin
           go_arch: amd64
           go_download_base_url: << pipeline.parameters.go_download_base_url >>
-          executor: macos-arm64
+          executor: macos-arm64-large
           install_deps_extension: macos-build
           context: snyk-macos-signing
           requires:
@@ -519,7 +519,7 @@ workflows:
           go_os: darwin
           go_arch: arm64
           go_download_base_url: << pipeline.parameters.go_download_base_url >>
-          executor: macos-arm64
+          executor: macos-arm64-large
           install_deps_extension: macos-build
           context: snyk-macos-signing
           requires:
@@ -632,7 +632,7 @@ workflows:
           dont_skip_tests: 0
 
       - acceptance-tests:
-          name: acceptance-tests macOS amd64
+          name: acceptance-tests macOS arm64
           context:
             - nodejs-install
             - team_hammerhead-cli
@@ -663,7 +663,7 @@ workflows:
           test_snyk_command: binary-releases\\snyk-win.exe
           install_deps_extension: windows-full
           dont_skip_tests: 0
-          shards: 4
+          shards: 8
           pre_test_cmds: Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1; RefreshEnv
 
       - sign:
@@ -792,11 +792,9 @@ workflows:
                 - 'win-server2022-amd64'
                 - 'macos-arm64'
                 - 'linux-ubuntu-latest-amd64'
-                - 'linux-ubuntu-mantic-amd64'
                 - 'linux-ubuntu-jammy-amd64'
                 - 'linux-ubuntu-focal-amd64'
                 - 'linux-ubuntu-latest-arm64'
-                - 'linux-ubuntu-mantic-arm64'
                 - 'linux-ubuntu-jammy-arm64'
                 - 'linux-ubuntu-focal-arm64'
                 - 'alpine'
@@ -853,11 +851,9 @@ workflows:
             - e2e tests (win-server2022-amd64)
             - e2e tests (macos-arm64)
             - e2e tests (linux-ubuntu-latest-amd64)
-            - e2e tests (linux-ubuntu-mantic-amd64)
             - e2e tests (linux-ubuntu-jammy-amd64)
             - e2e tests (linux-ubuntu-focal-amd64)
             - e2e tests (linux-ubuntu-latest-arm64)
-            - e2e tests (linux-ubuntu-mantic-arm64)
             - e2e tests (linux-ubuntu-jammy-arm64)
             - e2e tests (linux-ubuntu-focal-arm64)
             - e2e tests (alpine)
@@ -950,14 +946,14 @@ jobs:
       - restore_cache:
           name: Restore npm cache
           keys:
-            - prepare-build-npm-deps-{{ checksum "package-lock.json" }}
-            - prepare-build-npm-deps
+            - prepare-v1-build-npm-deps-{{ checksum "package-lock.json" }}
+            - prepare-v1-build-npm-deps
       - run:
           name: Installing dependencies
           command: npm ci --no-audit --no-progress --cache .npm --prefer-offline
       - save_cache:
           name: Save npm cache
-          key: prepare-build-npm-deps-{{ checksum "package-lock.json" }}
+          key: prepare-v1-build-npm-deps-{{ checksum "package-lock.json" }}
           paths:
             - .npm
       - run:
