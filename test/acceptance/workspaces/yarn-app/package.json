@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "marked": "^4.0.10",
-    "moment": "^2.29.4"
+    "marked": "^15.0.4",
+    "moment": "^2.30.1"
   }
 }
