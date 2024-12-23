@@ -7,7 +7,7 @@
     "precommit": "lint-staged"
   },
   "dependencies": {
-    "debug": "^4.3.1",
+    "debug": "^4.4.0",
     "object-assign": "4.1.1"
   }
 }

@@ -144,8 +144,8 @@ cross-spawn@^7.0.2:
     which "^2.0.1"
 
 debug@^4.3.1, debug@^4.3.2:
-  version "4.3.7"
-  resolved "https://registry.yarnpkg.com/debug/-/debug-4.3.7.tgz#87945b4151a011d76d95a198d7111c865c360a52"
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.4.0.tgz#2b3f2aea2ffeb776477460267377dc8710faba8a"
   dependencies:
     ms "^2.1.3"
 
