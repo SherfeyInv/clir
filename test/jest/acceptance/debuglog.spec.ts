@@ -38,13 +38,31 @@ describe('debug log', () => {
       env: {
         ...process.env,
         SNYK_DISABLE_ANALYTICS: '1',
-        DEBUG: '*',
         SNYK_LOG_LEVEL: 'trace',
       },
     });
 
     expect(expectedToken).not.toBeFalsy();
     expect(stderr).not.toContain(expectedToken);
+  });
+
+  it('redacts basic authentication', async () => {
+    const { stderr } = await runSnykCLI(
+      'container test ubuntu:latest --username=us --password=pw -d',
+      {
+        env: {
+          ...process.env,
+          SNYK_DISABLE_ANALYTICS: '1',
+          SNYK_LOG_LEVEL: 'trace',
+        },
+      },
+    );
+
+    // this test only makes sense when Basic auth would be expected, otherwise the checks below
+    if (stderr.includes('Basic ')) {
+      expect(stderr).not.toContain('Basic dXM6cHc=');
+      expect(stderr).toContain('Basic ***');
+    }
   });
 
   it('redacts externally injected bearer token', async () => {
@@ -57,7 +75,6 @@ describe('debug log', () => {
       env: {
         ...process.env,
         SNYK_DISABLE_ANALYTICS: '1',
-        DEBUG: '*',
         SNYK_LOG_LEVEL: 'trace',
         SNYK_OAUTH_TOKEN: expectedToken,
       },
@@ -66,5 +83,29 @@ describe('debug log', () => {
     expect(expectedToken).not.toBeFalsy();
     expect(stderr).not.toContain(expectedToken);
     expect(stderr).toContain('Bearer ***');
+  });
+
+  it('trace level logs contain body content', async () => {
+    const { stderr } = await runSnykCLI('whoami --experimental -d', {
+      env: {
+        ...process.env,
+        SNYK_DISABLE_ANALYTICS: '1',
+        SNYK_LOG_LEVEL: 'trace',
+      },
+    });
+
+    expect(stderr).toContain('body: ');
+  });
+
+  it('debug level logs do not contain body content', async () => {
+    const { stderr } = await runSnykCLI('whoami --experimental -d', {
+      env: {
+        ...process.env,
+        SNYK_DISABLE_ANALYTICS: '1',
+        SNYK_LOG_LEVEL: 'debug',
+      },
+    });
+
+    expect(stderr).not.toContain('body: ');
   });
 });
