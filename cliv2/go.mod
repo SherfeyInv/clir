@@ -17,10 +17,10 @@ require (
 	github.com/snyk/cli-extension-sbom v0.0.0-20250422133603-a5ae6fdf0934
 	github.com/snyk/container-cli v0.0.0-20250321132345-1e2e01681dd7
 	github.com/snyk/error-catalog-golang-public v0.0.0-20250520155934-078275889e2c
-	github.com/snyk/go-application-framework v0.0.0-20250618114212-411107267280
+	github.com/snyk/go-application-framework v0.0.0-20250626121550-40f2ae93c693
 	github.com/snyk/go-httpauth v0.0.0-20240307114523-1f5ea3f55c65
 	github.com/snyk/snyk-iac-capture v0.6.5
-	github.com/snyk/snyk-ls v0.0.0-20250617143724-fd0676889aa8
+	github.com/snyk/snyk-ls v0.0.0-20250627151101-c3703ce6473d
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
@@ -159,7 +159,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/peterh/liner v1.2.2 // indirect
-	github.com/pingcap/errors v0.11.4 // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
