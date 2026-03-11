@@ -132,7 +132,7 @@
     "snyk-sbt-plugin": "3.1.0",
     "snyk-swiftpm-plugin": "1.4.1",
     "strip-ansi": "^6.0.1",
-    "tar": "^6.2.1",
+    "tar": "^7.5.11",
     "uuid": "^8.3.2",
     "wrap-ansi": "^5.1.0"
   },
@@ -154,7 +154,7 @@
     "ajv-draft-04": "^1.0.0",
     "body-parser": "^1.19.0",
     "conventional-changelog-cli": "^4.1.0",
-    "copy-webpack-plugin": "^9.0.1",
+    "copy-webpack-plugin": "^14.0.0",
     "cross-spawn": "^6.0.5",
     "danger": "10.9.0",
     "depcheck": "^1.4.3",
