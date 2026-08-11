@@ -11,21 +11,21 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.34.0
-	github.com/snyk/cli-extension-agent-scan v0.0.0-20260715092951-4f8fa1b9886c
-	github.com/snyk/cli-extension-ai-bom v0.0.0-20260721084000-da8dc26c77f2
-	github.com/snyk/cli-extension-dep-graph/v2 v2.7.2
+	github.com/snyk/cli-extension-agent-scan v0.0.0-20260803112735-0ad462cba2af
+	github.com/snyk/cli-extension-ai-bom v0.0.0-20260804095026-fdfc28cd38b8
+	github.com/snyk/cli-extension-dep-graph/v2 v2.8.1
 	github.com/snyk/cli-extension-iac v0.0.0-20260515092252-505c498f1077
 	github.com/snyk/cli-extension-iac-rules v0.0.0-20260515141409-fb475901bb8e
 	github.com/snyk/cli-extension-os-flows v0.0.0-20260722114313-168a09671091
-	github.com/snyk/cli-extension-sbom v0.0.0-20260722102401-3c3af28e7b93
-	github.com/snyk/cli-extension-secrets v0.0.0-20260619070019-764c5c87eda3
-	github.com/snyk/code-client-go v1.27.0
+	github.com/snyk/cli-extension-sbom v0.0.0-20260728161808-90fff659c450
+	github.com/snyk/cli-extension-secrets v0.0.0-20260728151749-3c88a5e044f3
+	github.com/snyk/code-client-go v1.31.3
 	github.com/snyk/container-cli v0.0.0-20260213211631-cd2b2cf8f3ea
 	github.com/snyk/error-catalog-golang-public v0.0.0-20260505112649-a5103d411663
-	github.com/snyk/go-application-framework v0.8.0
+	github.com/snyk/go-application-framework v0.13.0
 	github.com/snyk/go-httpauth v0.0.0-20240307114523-1f5ea3f55c65
 	github.com/snyk/snyk-iac-capture v0.6.5
-	github.com/snyk/snyk-ls v0.0.0-20260727100503-17c420b24a76
+	github.com/snyk/snyk-ls v0.0.0-20260804092303-865b318b1c8f
 	github.com/snyk/studio-mcp v1.15.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.10
