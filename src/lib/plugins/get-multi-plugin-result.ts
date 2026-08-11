@@ -203,6 +203,16 @@ export async function getMultiPluginResult(
   }
 
   if (!allResults.length) {
+    if (options['print-output-jsonl-with-errors']) {
+      return {
+        plugin: {
+          name: 'custom-auto-detect',
+        },
+        scannedProjects: allResults,
+        failedResults,
+      };
+    }
+
     // No projects were scanned successfully
     let message = `Failed to get dependencies for all ${targetFiles.length} potential projects.\n`;
 
@@ -247,6 +257,7 @@ async function processWorkspacesProjects(
         dev: options.dev,
         exclude: options.exclude,
         showNpmScope: featureFlags.has(SHOW_NPM_SCOPE),
+        includeComponentMetadata: options['include-component-metadata'],
       },
       targetFiles,
     );
