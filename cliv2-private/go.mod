@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/snyk/ambient-canary v0.0.0-20260722064253-fba619a134a9
-	github.com/snyk/cli-extension-axi v0.0.0-20260807132828-734c2ae85a0a
+	github.com/snyk/cli-extension-axi v0.0.0-20260812113949-210b479505a9
 	github.com/snyk/cli-extension-cos v0.0.0-20260804092425-a7e642ae7b3b
 	github.com/snyk/cli/cliv2 v0.0.0
 	github.com/snyk/remy-cli-extension v1.36.1
@@ -211,22 +211,22 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/snyk/cli-extension-agent-scan v0.0.0-20260803112735-0ad462cba2af // indirect
-	github.com/snyk/cli-extension-ai-bom v0.0.0-20260804095026-fdfc28cd38b8 // indirect
+	github.com/snyk/cli-extension-ai-bom v0.0.0-20260813135431-38a363dae403 // indirect
 	github.com/snyk/cli-extension-dep-graph/v2 v2.8.1 // indirect
 	github.com/snyk/cli-extension-iac v0.0.0-20260515092252-505c498f1077 // indirect
 	github.com/snyk/cli-extension-iac-rules v0.0.0-20260515141409-fb475901bb8e // indirect
 	github.com/snyk/cli-extension-os-flows v0.0.0-20260722114313-168a09671091 // indirect
-	github.com/snyk/cli-extension-sbom v0.0.0-20260728161808-90fff659c450 // indirect
-	github.com/snyk/cli-extension-secrets v0.0.0-20260728151749-3c88a5e044f3 // indirect
+	github.com/snyk/cli-extension-sbom v0.0.0-20260811135250-99c30fb97642 // indirect
+	github.com/snyk/cli-extension-secrets v0.0.0-20260811115637-ee872c26b0cd // indirect
 	github.com/snyk/code-client-go v1.31.3 // indirect
 	github.com/snyk/container-cli v0.0.0-20260213211631-cd2b2cf8f3ea // indirect
 	github.com/snyk/dep-graph/go v0.0.0-20260127160647-c836da762c62 // indirect
 	github.com/snyk/error-catalog-golang-public v0.0.0-20260806122555-28dc45bbbde6 // indirect
-	github.com/snyk/go-application-framework v0.14.0 // indirect
-	github.com/snyk/go-httpauth v0.0.0-20260803174134-2de16f8df223 // indirect
+	github.com/snyk/go-application-framework v0.14.3 // indirect
+	github.com/snyk/go-httpauth v0.0.0-20260810142636-0f6182aaccbc // indirect
 	github.com/snyk/policy-engine v1.1.4 // indirect
 	github.com/snyk/snyk-iac-capture v0.6.5 // indirect
-	github.com/snyk/snyk-ls v0.0.0-20260804092303-865b318b1c8f // indirect
+	github.com/snyk/snyk-ls v0.0.0-20260814112015-c5325e836868 // indirect
 	github.com/snyk/studio-mcp v1.15.3 // indirect
 	github.com/sourcegraph/go-lsp v0.0.0-20240223163137-f80c5dd31dfd // indirect
 	github.com/spf13/afero v1.15.0 // indirect
